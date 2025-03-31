@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { CalendarIcon, CheckIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { RippleButton } from "@/components/ui/ripple-button";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Command,
@@ -31,7 +32,9 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
-import { TransactionType, useFinanceStore } from "@/store/financeStore";
+import { useFinanceStore } from "@/store/financeStore";
+import type { TransactionType } from "@/store/types";
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 
 const transactionSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive" }),
@@ -56,10 +59,15 @@ export function TransactionForm({
   isEditing = false 
 }: TransactionFormProps) {
   const categories = useFinanceStore((state) => state.categories);
+  const addCategory = useFinanceStore((state) => state.addCategory);
 
   const [selectedType, setSelectedType] = useState<TransactionType>(
     defaultValues?.type || "expense"
   );
+  
+  // Add state for custom category dialog
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
   
   // Ensure form has proper default values and handle submit
   const form = useForm<TransactionFormValues>({
@@ -74,10 +82,27 @@ export function TransactionForm({
     },
   });
 
+  // When type changes, reset the category field if it doesn't exist in the new type's categories
+  useEffect(() => {
+    const currentCategory = form.getValues("category");
+    const availableCategories = categories[selectedType] || [];
+    
+    if (currentCategory && !availableCategories.includes(currentCategory)) {
+      form.setValue("category", "");
+    }
+  }, [selectedType, categories, form]);
+
   const handleTypeChange = (type: TransactionType) => {
     setSelectedType(type);
     form.setValue("type", type);
-    form.setValue("category", ""); // Reset category when type changes
+    
+    // Only reset category when changing types if the category doesn't exist in the new type
+    const currentCategory = form.getValues("category");
+    const newTypeCategories = categories[type] || [];
+    
+    if (!newTypeCategories.includes(currentCategory)) {
+      form.setValue("category", "");
+    }
   };
   
   const typesMap = {
@@ -92,6 +117,16 @@ export function TransactionForm({
 
   const handleSubmit = (values: TransactionFormValues) => {
     onSubmit(values);
+  };
+  
+  // Add new category handler
+  const handleAddCategory = () => {
+    if (newCategory.trim()) {
+      addCategory(selectedType, newCategory.trim());
+      form.setValue("category", newCategory.trim());
+      setNewCategory("");
+      setIsAddingCategory(false);
+    }
   };
 
   return (
@@ -197,54 +232,75 @@ export function TransactionForm({
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Category</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className={cn(
-                        "w-full justify-between",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value && availableCategories.length > 0
-                        ? availableCategories.find(
-                            (category) => category === field.value
-                          ) || "Select category"
-                        : "Select category"}
-                      <CheckIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Search category..." />
-                    <CommandEmpty>No category found.</CommandEmpty>
-                    <CommandGroup>
-                      {availableCategories.map((category) => (
-                        <CommandItem
-                          value={category}
-                          key={category}
-                          onSelect={() => {
-                            form.setValue("category", category);
-                          }}
-                        >
-                          <CheckIcon
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              category === field.value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            )}
-                          />
-                          {category}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value && availableCategories.length > 0
+                          ? availableCategories.find(
+                              (category) => category === field.value
+                            ) || "Select category"
+                          : "Select category"}
+                        <CheckIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search category..." />
+                      <CommandEmpty>
+                        <div className="p-2 text-center">
+                          <p>No category found.</p>
+                          <Button 
+                            variant="outline" 
+                            className="mt-2 w-full"
+                            onClick={() => setIsAddingCategory(true)}
+                          >
+                            Add new category
+                          </Button>
+                        </div>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {availableCategories.map((category) => (
+                          <CommandItem
+                            value={category}
+                            key={category}
+                            onSelect={() => {
+                              form.setValue("category", category);
+                            }}
+                          >
+                            <CheckIcon
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                category === field.value
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {category}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => setIsAddingCategory(true)} 
+                  className="shrink-0"
+                >
+                  +
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}
@@ -269,11 +325,41 @@ export function TransactionForm({
         />
 
         <div className="flex justify-end">
-          <Button type="submit">
+          <RippleButton type="submit" rippleColor="#7c9ef4">
             {isEditing ? "Update Transaction" : "Add Transaction"}
-          </Button>
+          </RippleButton>
         </div>
       </form>
+      
+      {/* Add Category Dialog */}
+      <Dialog open={isAddingCategory} onOpenChange={setIsAddingCategory}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Category</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label htmlFor="newCategory" className="text-sm font-medium">
+                Category Name
+              </label>
+              <Input
+                id="newCategory"
+                placeholder="Enter category name"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddingCategory(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddCategory}>
+              Add Category
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 }

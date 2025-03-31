@@ -11,6 +11,7 @@ export interface Transaction {
   type: TransactionType;
   notes?: string;
   tags?: string[];
+  timestamp?: string; // ISO string for when transaction was created/modified
 }
 
 // Interface for adding new transactions that supports both string and Date types for date

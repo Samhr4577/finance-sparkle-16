@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Transaction, TransactionInput, TransactionType } from './types';
+import { Transaction, TransactionInput } from './types';
 import { defaultCategories } from './categoryData';
 import { sampleTransactions } from './sampleData';
 import { createTransactionOperations } from './transactionOperations';
@@ -9,25 +9,30 @@ import { createTransactionQueries } from './transactionQueries';
 
 interface FinanceState {
   transactions: Transaction[];
-  categories: Record<TransactionType, string[]>;
+  categories: Record<string, string[]>;
   
   // CRUD operations
   addTransaction: (transaction: TransactionInput) => void;
   updateTransaction: (id: string, updates: Partial<TransactionInput>) => void;
   deleteTransaction: (id: string) => void;
   
+  // Category management
+  addCategory: (type: string, categoryName: string) => void;
+  updateCategory: (type: string, oldName: string, newName: string) => void;
+  deleteCategory: (type: string, categoryName: string) => void;
+  
   // Filters
-  getTransactionsByType: (type: TransactionType) => Transaction[];
+  getTransactionsByType: (type: string) => Transaction[];
   getTransactionsByDateRange: (
     startDate: Date, 
     endDate: Date,
-    type?: TransactionType
+    type?: string
   ) => Transaction[];
   
   // Statistics
-  getTotalByType: (type: TransactionType) => number;
+  getTotalByType: (type: string) => number;
   getRecentTransactions: (limit: number) => Transaction[];
-  getCategoryTotals: (type: TransactionType) => Record<string, number>;
+  getCategoryTotals: (type: string) => Record<string, number>;
 }
 
 export const useFinanceStore = create<FinanceState>()(

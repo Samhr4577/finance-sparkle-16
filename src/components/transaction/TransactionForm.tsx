@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RippleButton } from "@/components/ui/ripple-button";
 import { useFinanceStore } from "@/store/financeStore";
 import { TransactionType } from "@/store/types";
+import { supabase } from "@/integrations/supabase/client";
 
 import { TransactionTypeSelector } from "./TransactionTypeSelector";
 import { CategorySelector } from "./CategorySelector";
@@ -72,13 +74,55 @@ export function TransactionForm({
   // Ensure availableCategories is always an array, even if categories[selectedType] is undefined
   const availableCategories = categories[selectedType] || [];
 
-  const handleSubmit = (values: TransactionFormValues) => {
+  const handleSubmit = async (values: TransactionFormValues) => {
     // Add timestamp
     const valuesWithTimestamp = {
       ...values,
       timestamp: new Date().toISOString()
     };
+    
+    try {
+      // Store the transaction in Supabase if the user is logged in
+      const { data: session } = await supabase.auth.getSession();
+      if (session?.session?.user) {
+        const { error } = await supabase.from('transactions').insert({
+          amount: values.amount,
+          description: values.description,
+          category: values.category,
+          transaction_date: values.date,
+          transaction_type: mapTransactionType(values.type),
+          user_id: session.session.user.id
+        });
+        
+        if (error) {
+          console.error('Error saving to Supabase:', error);
+          toast.error('Failed to save to database. Saving locally only.');
+        } else {
+          toast.success('Transaction saved to database!');
+        }
+      }
+    } catch (error) {
+      console.error('Error in Supabase operation:', error);
+    }
+    
+    // Still process with local state management regardless of Supabase result
     onSubmit(valuesWithTimestamp);
+  };
+  
+  // Helper function to map our app's transaction types to database transaction types
+  const mapTransactionType = (type: TransactionType): string => {
+    switch (type) {
+      case 'expense':
+        return 'expense';
+      case 'sales-in':
+        return 'income';
+      case 'deposit':
+        return 'deposit';
+      case 'sales-out':
+        return 'expense'; // Map sales-out to expense in the database
+      default:
+        return 'expense';
+    }
   };
 
   return (

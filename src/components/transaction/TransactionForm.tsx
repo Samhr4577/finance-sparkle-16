@@ -10,6 +10,7 @@ import { RippleButton } from "@/components/ui/ripple-button";
 import { useFinanceStore } from "@/store/financeStore";
 import { TransactionType } from "@/store/types";
 import { supabase } from "@/integrations/supabase/client";
+import { dateToString } from "@/lib/utils";
 
 import { TransactionTypeSelector } from "./TransactionTypeSelector";
 import { CategorySelector } from "./CategorySelector";
@@ -84,7 +85,7 @@ export function TransactionForm({
           amount: values.amount,
           description: values.description,
           category: values.category,
-          transaction_date: values.date,
+          transaction_date: values.date.toISOString(),
           transaction_type: mapTransactionType(values.type),
           user_id: session.session.user.id
         };

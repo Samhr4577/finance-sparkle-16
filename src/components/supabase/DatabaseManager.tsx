@@ -16,6 +16,10 @@ interface TableColumn {
   isPrimary: boolean;
 }
 
+interface TableData {
+  table_name: string;
+}
+
 const DatabaseManager = () => {
   const [tables, setTables] = useState<string[]>([]);
   const [currentTab, setCurrentTab] = useState('create');
@@ -60,7 +64,9 @@ const DatabaseManager = () => {
       if (error) throw error;
       
       if (data) {
-        setTables(data);
+        // Extract table_name values from the array of objects
+        const tableNames = data.map((item: TableData) => item.table_name);
+        setTables(tableNames);
       }
     } catch (error) {
       console.error('Error fetching tables:', error);

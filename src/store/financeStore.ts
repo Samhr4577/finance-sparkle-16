@@ -136,14 +136,14 @@ export const useFinanceStore = create<FinanceState>()(
           ? transaction.date 
           : dateToString(transaction.date);
 
-        set(state => ({
+        set((state) => ({
           transactions: [
             ...state.transactions,
             {
               ...transaction,
               date: dateString,
               id: uuidv4(),
-            }
+            } as Transaction
           ]
         }));
         toast.success("Transaction added successfully");
@@ -158,10 +158,10 @@ export const useFinanceStore = create<FinanceState>()(
             : dateToString(updates.date);
         }
 
-        set(state => ({
-          transactions: state.transactions.map(transaction => 
+        set((state) => ({
+          transactions: state.transactions.map((transaction) => 
             transaction.id === id 
-              ? { ...transaction, ...processedUpdates }
+              ? { ...transaction, ...processedUpdates } as Transaction
               : transaction
           )
         }));
@@ -169,21 +169,21 @@ export const useFinanceStore = create<FinanceState>()(
       },
 
       deleteTransaction: (id) => {
-        set(state => ({
-          transactions: state.transactions.filter(transaction => transaction.id !== id)
+        set((state) => ({
+          transactions: state.transactions.filter((transaction) => transaction.id !== id)
         }));
         toast.success("Transaction deleted successfully");
       },
 
       getTransactionsByType: (type) => {
-        return get().transactions.filter(transaction => transaction.type === type);
+        return get().transactions.filter((transaction) => transaction.type === type);
       },
 
       getTransactionsByDateRange: (startDate, endDate, type) => {
         const start = startDate.setHours(0, 0, 0, 0);
         const end = endDate.setHours(23, 59, 59, 999);
 
-        return get().transactions.filter(transaction => {
+        return get().transactions.filter((transaction) => {
           const transactionDate = new Date(transaction.date).getTime();
           const matchesType = type ? transaction.type === type : true;
           return transactionDate >= start && transactionDate <= end && matchesType;
@@ -192,7 +192,7 @@ export const useFinanceStore = create<FinanceState>()(
 
       getTotalByType: (type) => {
         return get().transactions
-          .filter(transaction => transaction.type === type)
+          .filter((transaction) => transaction.type === type)
           .reduce((total, transaction) => total + transaction.amount, 0);
       },
 
@@ -208,7 +208,7 @@ export const useFinanceStore = create<FinanceState>()(
 
       getCategoryTotals: (type) => {
         return get().transactions
-          .filter(transaction => transaction.type === type)
+          .filter((transaction) => transaction.type === type)
           .reduce((acc, transaction) => {
             const { category, amount } = transaction;
             acc[category] = (acc[category] || 0) + amount;

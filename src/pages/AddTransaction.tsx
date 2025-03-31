@@ -4,6 +4,7 @@ import { TransactionForm, TransactionFormValues } from "@/components/transaction
 import { useFinanceStore } from "@/store/financeStore";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { dateToString } from "@/lib/utils";
 
 export default function AddTransactionPage() {
   const { addTransaction } = useFinanceStore();

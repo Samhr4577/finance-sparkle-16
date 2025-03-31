@@ -61,6 +61,7 @@ export function TransactionForm({
     defaultValues?.type || "expense"
   );
   
+  // Ensure form has proper default values and handle submit
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
@@ -86,6 +87,7 @@ export function TransactionForm({
     "deposit": { label: "Deposit", color: "bg-blue-500" },
   };
   
+  // Ensure availableCategories is always an array, even if categories[selectedType] is undefined
   const availableCategories = categories[selectedType] || [];
 
   const handleSubmit = (values: TransactionFormValues) => {
@@ -206,10 +208,10 @@ export function TransactionForm({
                         !field.value && "text-muted-foreground"
                       )}
                     >
-                      {field.value
+                      {field.value && availableCategories.length > 0
                         ? availableCategories.find(
                             (category) => category === field.value
-                          )
+                          ) || "Select category"
                         : "Select category"}
                       <CheckIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>

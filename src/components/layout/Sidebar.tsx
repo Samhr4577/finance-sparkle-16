@@ -11,25 +11,28 @@ import {
   ArrowDownIcon,
   PiggyBankIcon,
   SettingsIcon,
+  XIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "@/lib/auth";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SidebarLinkProps {
   to: string;
   icon: React.ElementType;
   label: string;
   collapsed: boolean;
+  onClick?: () => void;
 }
 
-const SidebarLink = ({ to, icon: Icon, label, collapsed }: SidebarLinkProps) => {
+const SidebarLink = ({ to, icon: Icon, label, collapsed, onClick }: SidebarLinkProps) => {
   const location = useLocation();
   const isActive = location.pathname === to;
   
   return (
-    <Link to={to} className="w-full">
+    <Link to={to} className="w-full" onClick={onClick}>
       <Button
         variant="ghost"
         className={cn(
@@ -46,9 +49,16 @@ const SidebarLink = ({ to, icon: Icon, label, collapsed }: SidebarLinkProps) => 
   );
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  setMobileOpen?: (open: boolean) => void;
+}
+
+export function Sidebar({ isMobileOpen, setMobileOpen }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { logout } = useAuthStore();
+  const isMobile = useIsMobile();
+  
   const links = [
     { to: "/", label: "Dashboard", icon: HomeIcon },
     { to: "/expenses", label: "Expenses", icon: ArrowDownIcon },
@@ -58,55 +68,89 @@ export function Sidebar() {
     { to: "/settings", label: "Settings", icon: SettingsIcon },
   ];
 
+  // Close mobile sidebar when route changes
+  const location = useLocation();
+  useEffect(() => {
+    if (isMobile && setMobileOpen) {
+      setMobileOpen(false);
+    }
+  }, [location.pathname, isMobile, setMobileOpen]);
+
+  const sidebarClasses = cn(
+    "h-screen bg-sidebar flex flex-col border-r border-sidebar-border transition-all duration-300 ease-in-out",
+    collapsed && !isMobile ? "w-[70px]" : "w-[240px]",
+    isMobile ? "fixed z-40" : "relative",
+    isMobile && !isMobileOpen ? "-translate-x-full" : "translate-x-0"
+  );
+
   return (
-    <div
-      className={cn(
-        "h-screen bg-sidebar flex flex-col border-r border-sidebar-border transition-all duration-300 ease-in-out",
-        collapsed ? "w-[70px]" : "w-[240px]"
+    <>
+      {/* Overlay for mobile sidebar */}
+      {isMobile && isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30"
+          onClick={() => setMobileOpen?.(false)}
+        />
       )}
-    >
-      <div className="flex items-center p-4 mb-4">
-        {!collapsed && (
-          <h1 className="text-xl font-bold text-sidebar-foreground">
-            FinanceTrack
-          </h1>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-1 px-2">
-        {links.map((link) => (
-          <SidebarLink
-            key={link.to}
-            to={link.to}
-            icon={link.icon}
-            label={link.label}
-            collapsed={collapsed}
-          />
-        ))}
-      </div>
-
-      <div className="mt-auto mb-8 px-2">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          onClick={() => logout()}
-        >
-          <LogOutIcon className={cn("h-5 w-5", collapsed ? "mx-auto" : "")} />
-          {!collapsed && <span>Logout</span>}
-        </Button>
-
-        <Button
-          variant="ghost"
-          className="mt-2 w-full justify-center text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <ArrowRightFromLineIcon className="h-5 w-5" />
-          ) : (
-            <ArrowLeftFromLineIcon className="h-5 w-5" />
+      
+      <div className={sidebarClasses}>
+        <div className="flex items-center justify-between p-4 mb-4">
+          {!collapsed && (
+            <h1 className="text-xl font-bold text-sidebar-foreground">
+              FinanceTrack
+            </h1>
           )}
-        </Button>
+          
+          {isMobile && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-sidebar-foreground"
+              onClick={() => setMobileOpen?.(false)}
+            >
+              <XIcon className="h-5 w-5" />
+            </Button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1 px-2 overflow-y-auto">
+          {links.map((link) => (
+            <SidebarLink
+              key={link.to}
+              to={link.to}
+              icon={link.icon}
+              label={link.label}
+              collapsed={collapsed}
+              onClick={() => isMobile && setMobileOpen?.(false)}
+            />
+          ))}
+        </div>
+
+        <div className="mt-auto mb-8 px-2">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            onClick={() => logout()}
+          >
+            <LogOutIcon className={cn("h-5 w-5", collapsed ? "mx-auto" : "")} />
+            {!collapsed && <span>Logout</span>}
+          </Button>
+
+          {!isMobile && (
+            <Button
+              variant="ghost"
+              className="mt-2 w-full justify-center text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              {collapsed ? (
+                <ArrowRightFromLineIcon className="h-5 w-5" />
+              ) : (
+                <ArrowLeftFromLineIcon className="h-5 w-5" />
+              )}
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

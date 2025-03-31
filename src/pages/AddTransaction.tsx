@@ -5,10 +5,20 @@ import { useFinanceStore } from "@/store/financeStore";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { dateToString } from "@/lib/utils";
+import { playSoundEffect } from "@/lib/audio";
+import { toast } from "sonner";
+import { useEffect } from "react";
 
 export default function AddTransactionPage() {
   const { addTransaction } = useFinanceStore();
   const navigate = useNavigate();
+  
+  // Preload sounds when the component mounts
+  useEffect(() => {
+    import("@/lib/audio").then(({ preloadSounds }) => {
+      preloadSounds();
+    });
+  }, []);
   
   const handleAddTransaction = (values: TransactionFormValues) => {
     // Create a complete transaction object (all required fields are present)
@@ -24,6 +34,12 @@ export default function AddTransactionPage() {
     };
     
     addTransaction(transactionToAdd);
+    
+    // Play sound effect
+    playSoundEffect("transaction");
+    
+    // Show success toast
+    toast.success("Transaction added successfully");
     
     // Navigate based on transaction type
     switch (values.type) {

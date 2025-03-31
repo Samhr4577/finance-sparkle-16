@@ -15,6 +15,7 @@ import SettingsPage from "./pages/Settings";
 import AddTransactionPage from "./pages/AddTransaction";
 import { useEffect } from "react";
 import { initAuth } from "./lib/auth";
+import { preloadSounds } from "./lib/audio";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,13 @@ const App = () => {
   // Initialize auth from localStorage if available
   useEffect(() => {
     initAuth();
+    
+    // Preload sound effects
+    try {
+      preloadSounds();
+    } catch (error) {
+      console.error("Failed to preload sounds:", error);
+    }
   }, []);
 
   return (

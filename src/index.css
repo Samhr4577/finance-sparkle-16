@@ -56,6 +56,7 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "cv11";
+    font-family: 'Inter', sans-serif;
   }
   
   /* Card hover effect */
@@ -91,5 +92,15 @@
   /* Hover scale animation */
   .hover-scale {
     @apply transition-transform duration-200 hover:scale-105;
+  }
+  
+  /* Add responsive helpers */
+  @media (max-width: 640px) {
+    .xs\:inline {
+      display: inline;
+    }
+    .xs\:hidden {
+      display: none;
+    }
   }
 }

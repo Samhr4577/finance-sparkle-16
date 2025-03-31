@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -18,7 +18,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
 
 interface CategorySelectorProps {
   control: any; // React Hook Form control
@@ -35,6 +34,7 @@ export function CategorySelector({
   selectedType,
   addCategory,
 }: CategorySelectorProps) {
+  const [open, setOpen] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategory, setNewCategory] = useState("");
 
@@ -55,21 +55,20 @@ export function CategorySelector({
           <FormItem className="flex flex-col">
             <FormLabel>Category</FormLabel>
             <div className="flex gap-2">
-              <Popover>
+              <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
                       variant="outline"
                       role="combobox"
+                      aria-expanded={open}
                       className={cn(
                         "w-full justify-between",
                         !field.value && "text-muted-foreground"
                       )}
                     >
-                      {field.value && availableCategories.length > 0
-                        ? availableCategories.find(
-                            (category) => category === field.value
-                          ) || "Select category"
+                      {field.value && availableCategories.includes(field.value)
+                        ? field.value
                         : "Select category"}
                       <CheckIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -84,7 +83,10 @@ export function CategorySelector({
                         <Button 
                           variant="outline" 
                           className="mt-2 w-full"
-                          onClick={() => setIsAddingCategory(true)}
+                          onClick={() => {
+                            setOpen(false);
+                            setIsAddingCategory(true);
+                          }}
                         >
                           Add new category
                         </Button>
@@ -97,6 +99,7 @@ export function CategorySelector({
                           key={category}
                           onSelect={() => {
                             field.onChange(category);
+                            setOpen(false);
                           }}
                         >
                           <CheckIcon
@@ -120,7 +123,7 @@ export function CategorySelector({
                 onClick={() => setIsAddingCategory(true)} 
                 className="shrink-0"
               >
-                +
+                <PlusIcon className="h-4 w-4" />
               </Button>
             </div>
             <FormMessage />

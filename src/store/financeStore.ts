@@ -54,5 +54,4 @@ export const useFinanceStore = create<FinanceState>()(
 );
 
 // Re-export types for convenience using 'export type' syntax
-export type { Transaction, TransactionInput, DateRange } from './types';
-export { TransactionType } from './types';
+export type { Transaction, TransactionInput, DateRange, TransactionType } from './types';

@@ -1,18 +1,17 @@
-
+import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 import { Transaction, TransactionInput } from './types';
 import { dateToString } from '@/lib/utils';
 
 export const createTransactionOperations = (
-  get: () => { transactions: Transaction[] },
+  get: () => { transactions: Transaction[], categories: Record<string, string[]> },
   set: (fn: (state: { transactions: Transaction[]; categories: Record<string, string[]> }) => { 
     transactions: Transaction[];
     categories: Record<string, string[]>;
   }) => void
 ) => ({
   addTransaction: (transaction: TransactionInput) => {
-    // Ensure date is converted to string format for storage
     const dateString = typeof transaction.date === 'string' 
       ? transaction.date 
       : dateToString(transaction.date);
@@ -25,7 +24,7 @@ export const createTransactionOperations = (
           ...transaction,
           date: dateString,
           id: uuidv4(),
-          timestamp: new Date().toISOString(), // Add timestamp
+          timestamp: new Date().toISOString()
         } as Transaction
       ]
     }));
@@ -33,7 +32,6 @@ export const createTransactionOperations = (
   },
 
   updateTransaction: (id: string, updates: Partial<TransactionInput>) => {
-    // Handle date conversion if it exists in updates
     const processedUpdates = { ...updates };
     if (updates.date !== undefined) {
       processedUpdates.date = typeof updates.date === 'string' 
@@ -48,7 +46,7 @@ export const createTransactionOperations = (
           ? { 
               ...transaction, 
               ...processedUpdates,
-              timestamp: new Date().toISOString() // Update timestamp
+              timestamp: new Date().toISOString()
             } as Transaction
           : transaction
       )
@@ -64,88 +62,148 @@ export const createTransactionOperations = (
     toast.success("Transaction deleted successfully");
   },
 
-  // New functions for category management
-  addCategory: (type: string, categoryName: string) => {
-    set((state) => {
-      // Don't add if category already exists
-      if (state.categories[type]?.includes(categoryName)) {
+  addCategory: async (type: string, categoryName: string) => {
+    try {
+      const existingCategories = get().categories[type] || [];
+      if (existingCategories.includes(categoryName)) {
         toast.error("Category already exists");
-        return state;
+        return;
       }
+
+      const { data: { session } } = await supabase.auth.getSession();
       
-      return {
+      if (!session?.user) {
+        toast.error("You must be logged in to add a category");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('categories')
+        .insert({
+          user_id: session.user.id,
+          type: type,
+          name: categoryName
+        })
+        .select();
+
+      if (error) {
+        toast.error(`Failed to add category: ${error.message}`);
+        return;
+      }
+
+      set((state) => ({
         ...state,
         categories: {
           ...state.categories,
           [type]: [...(state.categories[type] || []), categoryName]
         }
-      };
-    });
-    toast.success("Category added successfully");
+      }));
+
+      toast.success("Category added successfully");
+    } catch (err) {
+      console.error("Error adding category:", err);
+      toast.error("An unexpected error occurred");
+    }
   },
-  
-  updateCategory: (type: string, oldName: string, newName: string) => {
-    set((state) => {
-      // Check if category exists
-      if (!state.categories[type]?.includes(oldName)) {
+
+  updateCategory: async (type: string, oldName: string, newName: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        toast.error("You must be logged in to update a category");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('categories')
+        .select()
+        .eq('user_id', session.user.id)
+        .eq('type', type)
+        .eq('name', oldName)
+        .single();
+
+      if (error || !data) {
         toast.error("Category not found");
-        return state;
+        return;
       }
-      
-      // Check if new name already exists
-      if (state.categories[type]?.includes(newName) && oldName !== newName) {
-        toast.error("Category name already exists");
-        return state;
+
+      const { error: updateError } = await supabase
+        .from('categories')
+        .update({ name: newName })
+        .eq('id', data.id);
+
+      if (updateError) {
+        toast.error(`Failed to update category: ${updateError.message}`);
+        return;
       }
-      
-      // Update the category name
-      const updatedCategories = {
-        ...state.categories,
-        [type]: state.categories[type].map(cat => 
-          cat === oldName ? newName : cat
-        )
-      };
-      
-      // Also update all transactions using this category
-      const updatedTransactions = state.transactions.map(transaction => {
-        if (transaction.type === type && transaction.category === oldName) {
-          return {
-            ...transaction,
-            category: newName,
-            timestamp: new Date().toISOString()
-          };
-        }
-        return transaction;
+
+      set((state) => {
+        const updatedCategories = {
+          ...state.categories,
+          [type]: state.categories[type].map(cat => 
+            cat === oldName ? newName : cat
+          )
+        };
+
+        const updatedTransactions = state.transactions.map(transaction => {
+          if (transaction.type === type && transaction.category === oldName) {
+            return {
+              ...transaction,
+              category: newName,
+              timestamp: new Date().toISOString()
+            };
+          }
+          return transaction;
+        });
+
+        return {
+          ...state,
+          categories: updatedCategories,
+          transactions: updatedTransactions
+        };
       });
-      
-      return {
-        ...state,
-        categories: updatedCategories,
-        transactions: updatedTransactions
-      };
-    });
-    toast.success("Category updated successfully");
+
+      toast.success("Category updated successfully");
+    } catch (err) {
+      console.error("Error updating category:", err);
+      toast.error("An unexpected error occurred");
+    }
   },
-  
-  deleteCategory: (type: string, categoryName: string) => {
-    set((state) => {
-      // Check if category exists
-      if (!state.categories[type]?.includes(categoryName)) {
-        toast.error("Category not found");
-        return state;
+
+  deleteCategory: async (type: string, categoryName: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        toast.error("You must be logged in to delete a category");
+        return;
       }
-      
-      // Remove the category
-      const updatedCategories = {
-        ...state.categories,
-        [type]: state.categories[type].filter(cat => cat !== categoryName)
-      };
-      
-      return {
+
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('user_id', session.user.id)
+        .eq('type', type)
+        .eq('name', categoryName);
+
+      if (error) {
+        toast.error(`Failed to delete category: ${error.message}`);
+        return;
+      }
+
+      set((state) => ({
         ...state,
-        categories: updatedCategories
-      };
-    });
-    toast.success("Category deleted successfully");
+        categories: {
+          ...state.categories,
+          [type]: state.categories[type].filter(cat => cat !== categoryName)
+        }
+      }));
+
+      toast.success("Category deleted successfully");
+    } catch (err) {
+      console.error("Error deleting category:", err);
+      toast.error("An unexpected error occurred");
+    }
   }
 });

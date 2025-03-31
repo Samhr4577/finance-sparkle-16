@@ -152,7 +152,7 @@ export const useFinanceStore = create<FinanceState>()(
       updateTransaction: (id, updates) => {
         // Handle date conversion if it exists in updates
         const processedUpdates = { ...updates };
-        if (updates.date) {
+        if (updates.date !== undefined) {
           processedUpdates.date = typeof updates.date === 'string' 
             ? updates.date 
             : dateToString(updates.date);

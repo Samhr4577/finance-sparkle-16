@@ -9,7 +9,7 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
-import { TransactionForm } from "@/components/transaction/TransactionForm";
+import { TransactionForm, TransactionFormValues } from "@/components/transaction/TransactionForm";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +43,7 @@ export default function ExpensesPage() {
     }
   };
   
-  const handleUpdateTransaction = (values: Omit<Transaction, "id">) => {
+  const handleUpdateTransaction = (values: TransactionFormValues) => {
     if (selectedTransaction) {
       updateTransaction(selectedTransaction.id, values);
       setIsEditDialogOpen(false);
@@ -80,7 +80,10 @@ export default function ExpensesPage() {
             {selectedTransaction && (
               <TransactionForm
                 onSubmit={handleUpdateTransaction}
-                defaultValues={selectedTransaction}
+                defaultValues={{
+                  ...selectedTransaction,
+                  date: new Date(selectedTransaction.date)
+                }}
                 isEditing={true}
               />
             )}

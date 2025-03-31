@@ -10,10 +10,14 @@ export default function AddTransactionPage() {
   const navigate = useNavigate();
   
   const handleAddTransaction = (values: TransactionFormValues) => {
+    // Create a complete transaction object (all required fields are present)
     const transactionToAdd = {
-      ...values,
-      // Convert date to string format for storage
-      date: values.date.toISOString().split('T')[0]
+      amount: values.amount,
+      description: values.description,
+      category: values.category,
+      date: values.date,
+      type: values.type,
+      notes: values.notes || ""
     };
     
     addTransaction(transactionToAdd);

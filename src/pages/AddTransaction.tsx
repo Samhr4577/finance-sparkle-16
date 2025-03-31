@@ -1,6 +1,6 @@
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { TransactionForm } from "@/components/transaction/TransactionForm";
+import { TransactionForm, TransactionFormValues } from "@/components/transaction/TransactionForm";
 import { useFinanceStore } from "@/store/financeStore";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,8 +9,14 @@ export default function AddTransactionPage() {
   const { addTransaction } = useFinanceStore();
   const navigate = useNavigate();
   
-  const handleAddTransaction = (values: any) => {
-    addTransaction(values);
+  const handleAddTransaction = (values: TransactionFormValues) => {
+    const transactionToAdd = {
+      ...values,
+      // Convert date to string format for storage
+      date: values.date.toISOString().split('T')[0]
+    };
+    
+    addTransaction(transactionToAdd);
     
     // Navigate based on transaction type
     switch (values.type) {

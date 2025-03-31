@@ -42,9 +42,11 @@ const transactionSchema = z.object({
   type: z.enum(["expense", "sales-in", "sales-out", "deposit"] as const),
 });
 
+export type TransactionFormValues = z.infer<typeof transactionSchema>;
+
 interface TransactionFormProps {
-  onSubmit: (values: z.infer<typeof transactionSchema>) => void;
-  defaultValues?: Partial<z.infer<typeof transactionSchema>>;
+  onSubmit: (values: TransactionFormValues) => void;
+  defaultValues?: Partial<TransactionFormValues>;
   isEditing?: boolean;
 }
 
@@ -59,7 +61,7 @@ export function TransactionForm({
     defaultValues?.type || "expense"
   );
   
-  const form = useForm<z.infer<typeof transactionSchema>>({
+  const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       amount: defaultValues?.amount || 0,
@@ -86,9 +88,13 @@ export function TransactionForm({
   
   const availableCategories = categories[selectedType] || [];
 
+  const handleSubmit = (values: TransactionFormValues) => {
+    onSubmit(values);
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <div className="flex flex-wrap gap-2">
           {(Object.entries(typesMap) as Array<[TransactionType, { label: string, color: string }]>)
             .map(([type, { label, color }]) => (

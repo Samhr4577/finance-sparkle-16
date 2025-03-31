@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
+import { dateToString, ensureDateFormat } from '@/lib/utils';
 
 export type TransactionType = 'expense' | 'sales-in' | 'sales-out' | 'deposit';
 export type DateRange = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'custom';
@@ -12,7 +13,18 @@ export interface Transaction {
   amount: number;
   description: string;
   category: string;
-  date: string;
+  date: string;  // Stored as YYYY-MM-DD string
+  type: TransactionType;
+  notes?: string;
+  tags?: string[];
+}
+
+// Interface for adding new transactions that supports both string and Date types for date
+export interface TransactionInput {
+  amount: number;
+  description: string;
+  category: string;
+  date: Date | string;
   type: TransactionType;
   notes?: string;
   tags?: string[];
@@ -23,8 +35,8 @@ interface FinanceState {
   categories: Record<TransactionType, string[]>;
   
   // CRUD operations
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
-  updateTransaction: (id: string, updates: Partial<Omit<Transaction, 'id'>>) => void;
+  addTransaction: (transaction: TransactionInput) => void;
+  updateTransaction: (id: string, updates: Partial<TransactionInput>) => void;
   deleteTransaction: (id: string) => void;
   
   // Filters
@@ -119,11 +131,17 @@ export const useFinanceStore = create<FinanceState>()(
       },
 
       addTransaction: (transaction) => {
+        // Ensure date is converted to string format for storage
+        const dateString = typeof transaction.date === 'string' 
+          ? transaction.date 
+          : dateToString(transaction.date);
+
         set(state => ({
           transactions: [
             ...state.transactions,
             {
               ...transaction,
+              date: dateString,
               id: uuidv4(),
             }
           ]
@@ -132,10 +150,18 @@ export const useFinanceStore = create<FinanceState>()(
       },
 
       updateTransaction: (id, updates) => {
+        // Handle date conversion if it exists in updates
+        const processedUpdates = { ...updates };
+        if (updates.date) {
+          processedUpdates.date = typeof updates.date === 'string' 
+            ? updates.date 
+            : dateToString(updates.date);
+        }
+
         set(state => ({
           transactions: state.transactions.map(transaction => 
             transaction.id === id 
-              ? { ...transaction, ...updates }
+              ? { ...transaction, ...processedUpdates }
               : transaction
           )
         }));
@@ -171,6 +197,10 @@ export const useFinanceStore = create<FinanceState>()(
       },
 
       getRecentTransactions: (limit) => {
+        if (!get().transactions || get().transactions.length === 0) {
+          return [];
+        }
+        
         return [...get().transactions]
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           .slice(0, limit);

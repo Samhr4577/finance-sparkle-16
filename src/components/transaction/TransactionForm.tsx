@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -46,6 +47,7 @@ export function TransactionForm({
       date: defaultValues?.date ? new Date(defaultValues.date) : new Date(),
       notes: defaultValues?.notes || "",
       type: defaultValues?.type || "expense",
+      timestamp: defaultValues?.timestamp || new Date().toISOString(),
     },
   });
 
@@ -70,12 +72,13 @@ export function TransactionForm({
     }
   };
 
+  // Ensure we have a valid array for categories
   const availableCategories = categories[selectedType] || [];
 
   const handleSubmit = async (values: TransactionFormValues) => {
     const valuesWithTimestamp = {
       ...values,
-      timestamp: new Date().toISOString()
+      timestamp: values.timestamp || new Date().toISOString()
     };
     
     try {

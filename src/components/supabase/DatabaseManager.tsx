@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,7 +35,8 @@ const DatabaseManager = () => {
   // Check if we're connected to Supabase
   const checkConnection = async () => {
     try {
-      const { data, error } = await supabase.from('_dummy_query').select('*').limit(1);
+      // Use a safe query that won't fail due to type checking
+      const { error } = await supabase.rpc('get_tables');
       
       if (error && error.message.includes('auth/invalid_credentials')) {
         setIsConnected(false);
@@ -54,8 +55,7 @@ const DatabaseManager = () => {
   const fetchTables = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .rpc('get_tables');
+      const { data, error } = await supabase.rpc('get_tables');
       
       if (error) throw error;
       

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -16,6 +15,8 @@ import { TransactionTypeSelector } from "./TransactionTypeSelector";
 import { CategorySelector } from "./CategorySelector";
 import { AmountDateFields } from "./AmountDateFields";
 import { transactionSchema, TransactionFormValues } from "./transactionFormSchema";
+
+export type { TransactionFormValues } from "./transactionFormSchema";
 
 interface TransactionFormProps {
   onSubmit: (values: TransactionFormValues) => void;
@@ -35,7 +36,6 @@ export function TransactionForm({
     defaultValues?.type || "expense"
   );
   
-  // Ensure form has proper default values and handle submit
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
@@ -48,7 +48,6 @@ export function TransactionForm({
     },
   });
 
-  // When type changes, reset the category field if it doesn't exist in the new type's categories
   useEffect(() => {
     const currentCategory = form.getValues("category");
     const availableCategories = categories[selectedType] || [];
@@ -62,7 +61,6 @@ export function TransactionForm({
     setSelectedType(type);
     form.setValue("type", type);
     
-    // Only reset category when changing types if the category doesn't exist in the new type
     const currentCategory = form.getValues("category");
     const newTypeCategories = categories[type] || [];
     
@@ -70,29 +68,30 @@ export function TransactionForm({
       form.setValue("category", "");
     }
   };
-  
-  // Ensure availableCategories is always an array, even if categories[selectedType] is undefined
+
   const availableCategories = categories[selectedType] || [];
 
   const handleSubmit = async (values: TransactionFormValues) => {
-    // Add timestamp
     const valuesWithTimestamp = {
       ...values,
       timestamp: new Date().toISOString()
     };
     
     try {
-      // Store the transaction in Supabase if the user is logged in
       const { data: session } = await supabase.auth.getSession();
       if (session?.session?.user) {
-        const { error } = await supabase.from('transactions').insert({
+        const transactionData = {
           amount: values.amount,
           description: values.description,
           category: values.category,
           transaction_date: values.date,
           transaction_type: mapTransactionType(values.type),
           user_id: session.session.user.id
-        });
+        };
+        
+        const { error } = await supabase
+          .from('transactions')
+          .insert(transactionData);
         
         if (error) {
           console.error('Error saving to Supabase:', error);
@@ -105,11 +104,9 @@ export function TransactionForm({
       console.error('Error in Supabase operation:', error);
     }
     
-    // Still process with local state management regardless of Supabase result
     onSubmit(valuesWithTimestamp);
   };
-  
-  // Helper function to map our app's transaction types to database transaction types
+
   const mapTransactionType = (type: TransactionType): string => {
     switch (type) {
       case 'expense':
@@ -119,7 +116,7 @@ export function TransactionForm({
       case 'deposit':
         return 'deposit';
       case 'sales-out':
-        return 'expense'; // Map sales-out to expense in the database
+        return 'expense';
       default:
         return 'expense';
     }

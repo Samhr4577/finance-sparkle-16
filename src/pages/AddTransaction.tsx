@@ -18,7 +18,9 @@ export default function AddTransactionPage() {
       category: values.category,
       date: values.date,
       type: values.type,
-      notes: values.notes || ""
+      notes: values.notes || "",
+      // Ensure timestamp is included if present in the values
+      timestamp: values.timestamp || new Date().toISOString()
     };
     
     addTransaction(transactionToAdd);

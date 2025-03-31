@@ -13,6 +13,7 @@ import DepositsPage from "./pages/Deposits";
 import ReportsPage from "./pages/Reports";
 import SettingsPage from "./pages/Settings";
 import AddTransactionPage from "./pages/AddTransaction";
+import DatabasePage from "./pages/Database";
 import { useEffect } from "react";
 import { initAuth } from "./lib/auth";
 import { preloadSounds } from "./lib/audio";
@@ -47,6 +48,7 @@ const App = () => {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/add-transaction" element={<AddTransactionPage />} />
+            <Route path="/database" element={<DatabasePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -24,7 +24,7 @@ interface CategorySelectorProps {
   name: string;
   availableCategories: string[];
   selectedType: string;
-  addCategory: (type: string, category: string) => void;
+  addCategory: (type: string, category: string) => Promise<void>;
 }
 
 export function CategorySelector({
@@ -45,6 +45,9 @@ export function CategorySelector({
       setIsAddingCategory(false);
     }
   };
+
+  // Ensure availableCategories is always an array
+  const categories = Array.isArray(availableCategories) ? availableCategories : [];
 
   return (
     <>
@@ -67,7 +70,7 @@ export function CategorySelector({
                         !field.value && "text-muted-foreground"
                       )}
                     >
-                      {field.value && availableCategories.includes(field.value)
+                      {field.value && categories.includes(field.value)
                         ? field.value
                         : "Select category"}
                       <CheckIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -93,7 +96,7 @@ export function CategorySelector({
                       </div>
                     </CommandEmpty>
                     <CommandGroup>
-                      {availableCategories.map((category) => (
+                      {categories.map((category) => (
                         <CommandItem
                           value={category}
                           key={category}

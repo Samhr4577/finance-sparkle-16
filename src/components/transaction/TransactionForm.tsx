@@ -70,7 +70,7 @@ export function TransactionForm({
   };
   
   // Ensure availableCategories is always an array, even if categories[selectedType] is undefined
-  const availableCategories = categories[selectedType] || [];
+  const availableCategories = Array.isArray(categories[selectedType]) ? categories[selectedType] : [];
 
   const handleSubmit = (values: TransactionFormValues) => {
     // Add timestamp
@@ -140,3 +140,5 @@ export function TransactionForm({
     </Form>
   );
 }
+
+export { type TransactionFormValues };

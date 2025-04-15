@@ -9,6 +9,8 @@ export const sampleTransactions: Transaction[] = [
     category: "Income",
     date: "2023-09-01",
     type: "sales-in",
+    timestamp: "2023-09-01T09:00:00.000Z",
+    notes: ""
   },
   {
     id: "2",
@@ -17,6 +19,8 @@ export const sampleTransactions: Transaction[] = [
     category: "Food",
     date: "2023-09-03",
     type: "expense",
+    timestamp: "2023-09-03T14:30:00.000Z",
+    notes: ""
   },
   {
     id: "3",
@@ -25,6 +29,8 @@ export const sampleTransactions: Transaction[] = [
     category: "Entertainment",
     date: "2023-09-05",
     type: "expense",
+    timestamp: "2023-09-05T18:00:00.000Z",
+    notes: ""
   },
   {
     id: "4",
@@ -33,6 +39,8 @@ export const sampleTransactions: Transaction[] = [
     category: "Savings",
     date: "2023-09-10",
     type: "deposit",
+    timestamp: "2023-09-10T11:15:00.000Z",
+    notes: ""
   },
   {
     id: "5",
@@ -41,6 +49,8 @@ export const sampleTransactions: Transaction[] = [
     category: "Utilities",
     date: "2023-09-15",
     type: "expense",
+    timestamp: "2023-09-15T16:45:00.000Z",
+    notes: ""
   },
   {
     id: "6",
@@ -49,6 +59,8 @@ export const sampleTransactions: Transaction[] = [
     category: "Income",
     date: "2023-09-20",
     type: "sales-in",
+    timestamp: "2023-09-20T10:30:00.000Z",
+    notes: ""
   },
   {
     id: "7",
@@ -57,6 +69,8 @@ export const sampleTransactions: Transaction[] = [
     category: "Food",
     date: "2023-09-25",
     type: "expense",
+    timestamp: "2023-09-25T19:20:00.000Z",
+    notes: ""
   },
   {
     id: "8",
@@ -65,5 +79,7 @@ export const sampleTransactions: Transaction[] = [
     category: "Shopping",
     date: "2023-09-28",
     type: "sales-out",
+    timestamp: "2023-09-28T15:10:00.000Z",
+    notes: ""
   },
 ];

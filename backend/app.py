@@ -1,328 +1,226 @@
 
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
+import sqlite3
+import os
+import json
 from datetime import datetime
 import uuid
-import os
 
 app = Flask(__name__)
-# Configure CORS to allow requests from your React app
-CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
+CORS(app)  # Enable CORS for all routes
 
-# Configure SQLite database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///finance_tracker.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+# Database setup
+DB_PATH = 'finance_tracker.db'
 
-# Models
-class Transaction(db.Model):
-    id = db.Column(db.String(36), primary_key=True)
-    amount = db.Column(db.Float, nullable=False)
-    description = db.Column(db.String(200), nullable=False)
-    category = db.Column(db.String(100), nullable=False)
-    date = db.Column(db.String(10), nullable=False)  # YYYY-MM-DD
-    type = db.Column(db.String(20), nullable=False)  # expense, sales-in, sales-out, deposit
-    notes = db.Column(db.Text, nullable=True)
-    timestamp = db.Column(db.String(30), nullable=False)  # ISO format
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'amount': self.amount,
-            'description': self.description,
-            'category': self.category,
-            'date': self.date,
-            'type': self.type,
-            'notes': self.notes,
-            'timestamp': self.timestamp
+def init_db():
+    if not os.path.exists(DB_PATH):
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Create transactions table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS transactions (
+            id TEXT PRIMARY KEY,
+            amount REAL NOT NULL,
+            description TEXT NOT NULL,
+            category TEXT NOT NULL,
+            date TEXT NOT NULL,
+            type TEXT NOT NULL,
+            notes TEXT,
+            timestamp TEXT NOT NULL
+        )
+        ''')
+        
+        # Create categories table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS categories (
+            type TEXT NOT NULL,
+            name TEXT NOT NULL,
+            PRIMARY KEY (type, name)
+        )
+        ''')
+        
+        # Insert default categories
+        default_categories = {
+            "expense": ["Food", "Housing", "Transportation", "Entertainment", "Utilities", "Healthcare", "Shopping", "Education", "Personal", "Miscellaneous"],
+            "sales-in": ["Salary", "Freelance", "Investments", "Gifts", "Other Income"],
+            "sales-out": ["Materials", "Services", "Equipment", "Marketing", "Business Expenses"],
+            "deposit": ["Savings", "Investment", "Emergency Fund", "Retirement", "Vacation Fund"]
         }
+        
+        for type, categories in default_categories.items():
+            for category in categories:
+                cursor.execute("INSERT INTO categories (type, name) VALUES (?, ?)", (type, category))
+        
+        conn.commit()
+        conn.close()
 
-class Category(db.Model):
-    id = db.Column(db.String(36), primary_key=True)
-    type = db.Column(db.String(20), nullable=False)  # expense, sales-in, sales-out, deposit
-    name = db.Column(db.String(100), nullable=False)
-    
-    __table_args__ = (db.UniqueConstraint('type', 'name'),)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'type': self.type,
-            'name': self.name
-        }
+# Initialize the database
+init_db()
 
-# Routes for Transactions
+def dict_factory(cursor, row):
+    """Convert database row to dictionary"""
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+# API Routes
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
-    transactions = Transaction.query.all()
-    return jsonify([t.to_dict() for t in transactions])
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = dict_factory
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM transactions ORDER BY date DESC")
+    transactions = cursor.fetchall()
+    conn.close()
+    return jsonify(transactions)
 
 @app.route('/api/transactions', methods=['POST'])
 def add_transaction():
     data = request.json
     
-    # Generate a UUID for the new transaction
-    transaction_id = str(uuid.uuid4())
+    # Generate a unique ID if not provided
+    if 'id' not in data:
+        data['id'] = str(uuid.uuid4())
     
-    # Create a timestamp if not provided
+    # Ensure timestamp is present
     if 'timestamp' not in data:
         data['timestamp'] = datetime.now().isoformat()
     
-    transaction = Transaction(
-        id=transaction_id,
-        amount=data['amount'],
-        description=data['description'],
-        category=data['category'],
-        date=data['date'] if isinstance(data['date'], str) else data['date'].split('T')[0],
-        type=data['type'],
-        notes=data.get('notes', ''),
-        timestamp=data['timestamp']
-    )
+    # Ensure notes field exists
+    if 'notes' not in data:
+        data['notes'] = ""
     
-    db.session.add(transaction)
-    db.session.commit()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO transactions (id, amount, description, category, date, type, notes, timestamp) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (data['id'], data['amount'], data['description'], data['category'], 
+          data['date'], data['type'], data['notes'], data['timestamp']))
+    conn.commit()
+    conn.close()
     
-    return jsonify(transaction.to_dict()), 201
+    return jsonify({"success": True, "id": data['id']})
 
-@app.route('/api/transactions/<string:id>', methods=['PUT'])
+@app.route('/api/transactions/<id>', methods=['PUT'])
 def update_transaction(id):
     data = request.json
-    transaction = Transaction.query.get(id)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
     
-    if not transaction:
-        return jsonify({'error': 'Transaction not found'}), 404
+    # Update timestamp
+    data['timestamp'] = datetime.now().isoformat()
     
-    transaction.amount = data.get('amount', transaction.amount)
-    transaction.description = data.get('description', transaction.description)
-    transaction.category = data.get('category', transaction.category)
-    transaction.date = data.get('date', transaction.date)
-    transaction.type = data.get('type', transaction.type)
-    transaction.notes = data.get('notes', transaction.notes)
-    transaction.timestamp = datetime.now().isoformat()
+    cursor.execute("""
+    UPDATE transactions 
+    SET amount=?, description=?, category=?, date=?, type=?, notes=?, timestamp=?
+    WHERE id=?
+    """, (data['amount'], data['description'], data['category'], 
+          data['date'], data['type'], data['notes'], data['timestamp'], id))
+    conn.commit()
+    conn.close()
     
-    db.session.commit()
-    
-    return jsonify(transaction.to_dict())
+    return jsonify({"success": True})
 
-@app.route('/api/transactions/<string:id>', methods=['DELETE'])
+@app.route('/api/transactions/<id>', methods=['DELETE'])
 def delete_transaction(id):
-    transaction = Transaction.query.get(id)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM transactions WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
     
-    if not transaction:
-        return jsonify({'error': 'Transaction not found'}), 404
-    
-    db.session.delete(transaction)
-    db.session.commit()
-    
-    return jsonify({'message': 'Transaction deleted successfully'})
+    return jsonify({"success": True})
 
-# Routes for Categories
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
-    categories = Category.query.all()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT type, name FROM categories")
+    categories_list = cursor.fetchall()
+    conn.close()
     
-    # Group categories by type
-    category_dict = {}
-    for category in categories:
-        if category.type not in category_dict:
-            category_dict[category.type] = []
-        category_dict[category.type].append(category.name)
+    # Convert to the expected format
+    categories = {
+        "expense": [],
+        "sales-in": [],
+        "sales-out": [],
+        "deposit": []
+    }
     
-    return jsonify(category_dict)
+    for category in categories_list:
+        category_type, category_name = category
+        if category_type in categories:
+            categories[category_type].append(category_name)
+    
+    return jsonify(categories)
 
 @app.route('/api/categories', methods=['POST'])
 def add_category():
     data = request.json
+    category_type = data.get('type')
+    category_name = data.get('name')
     
-    # Check if category already exists
-    existing = Category.query.filter_by(type=data['type'], name=data['name']).first()
-    if existing:
-        return jsonify({'error': 'Category already exists'}), 400
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
     
-    category = Category(
-        id=str(uuid.uuid4()),
-        type=data['type'],
-        name=data['name']
-    )
+    try:
+        cursor.execute("INSERT INTO categories (type, name) VALUES (?, ?)", 
+                      (category_type, category_name))
+        conn.commit()
+        success = True
+    except sqlite3.IntegrityError:
+        # Category already exists
+        success = False
     
-    db.session.add(category)
-    db.session.commit()
+    conn.close()
     
-    return jsonify(category.to_dict()), 201
+    return jsonify({"success": success})
 
-@app.route('/api/categories/<string:type>/<string:old_name>', methods=['PUT'])
+@app.route('/api/categories/<type>/<old_name>', methods=['PUT'])
 def update_category(type, old_name):
     data = request.json
-    new_name = data['name']
+    new_name = data.get('new_name')
     
-    # Find the category to update
-    category = Category.query.filter_by(type=type, name=old_name).first()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
     
-    if not category:
-        return jsonify({'error': 'Category not found'}), 404
+    # Update category in categories table
+    cursor.execute("UPDATE categories SET name=? WHERE type=? AND name=?", 
+                  (new_name, type, old_name))
     
-    # Check if new name already exists
-    if old_name != new_name:
-        existing = Category.query.filter_by(type=type, name=new_name).first()
-        if existing:
-            return jsonify({'error': 'Category name already exists'}), 400
+    # Update category in transactions table
+    cursor.execute("UPDATE transactions SET category=? WHERE type=? AND category=?", 
+                  (new_name, type, old_name))
     
-    category.name = new_name
+    conn.commit()
+    conn.close()
     
-    # Also update all transactions using this category
-    transactions = Transaction.query.filter_by(type=type, category=old_name).all()
-    for transaction in transactions:
-        transaction.category = new_name
-    
-    db.session.commit()
-    
-    return jsonify(category.to_dict())
+    return jsonify({"success": True})
 
-@app.route('/api/categories/<string:type>/<string:name>', methods=['DELETE'])
+@app.route('/api/categories/<type>/<name>', methods=['DELETE'])
 def delete_category(type, name):
-    category = Category.query.filter_by(type=type, name=name).first()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM categories WHERE type=? AND name=?", (type, name))
+    conn.commit()
+    conn.close()
     
-    if not category:
-        return jsonify({'error': 'Category not found'}), 404
-    
-    db.session.delete(category)
-    db.session.commit()
-    
-    return jsonify({'message': 'Category deleted successfully'})
+    return jsonify({"success": True})
 
-# Initialize the database with default categories
 @app.route('/api/reset', methods=['POST'])
-def reset_db():
-    db.drop_all()
-    db.create_all()
+def reset_database():
+    # Delete the database file
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
     
-    # Add default categories
-    default_categories = {
-        'expense': ['Food', 'Transportation', 'Entertainment', 'Utilities', 'Housing', 'Healthcare', 'Education', 'Personal', 'Miscellaneous'],
-        'sales-in': ['Income', 'Freelance', 'Gifts', 'Investments', 'Side Hustle'],
-        'sales-out': ['Inventory', 'Marketing', 'Operations', 'Tools', 'Services', 'Contractors'],
-        'deposit': ['Savings', 'Investment', 'Emergency Fund', 'Retirement', 'Vacation']
-    }
+    # Reinitialize the database
+    init_db()
     
-    for type, categories in default_categories.items():
-        for category_name in categories:
-            db.session.add(Category(
-                id=str(uuid.uuid4()),
-                type=type,
-                name=category_name
-            ))
-    
-    # Add sample transactions
-    sample_transactions = [
-        {
-            'id': "1",
-            'amount': 1250,
-            'description': "Monthly Salary",
-            'category': "Income",
-            'date': "2023-09-01",
-            'type': "sales-in",
-            'timestamp': "2023-09-01T12:00:00.000Z"
-        },
-        {
-            'id': "2",
-            'amount': 45.99,
-            'description': "Groceries",
-            'category': "Food",
-            'date': "2023-09-03",
-            'type': "expense",
-            'timestamp': "2023-09-03T12:00:00.000Z"
-        },
-        {
-            'id': "3",
-            'amount': 29.99,
-            'description': "Netflix Subscription",
-            'category': "Entertainment",
-            'date': "2023-09-05",
-            'type': "expense",
-            'timestamp': "2023-09-05T12:00:00.000Z"
-        },
-        {
-            'id': "4",
-            'amount': 500,
-            'description': "Bank Deposit",
-            'category': "Savings",
-            'date': "2023-09-10",
-            'type': "deposit",
-            'timestamp': "2023-09-10T12:00:00.000Z"
-        },
-        {
-            'id': "5",
-            'amount': 125,
-            'description': "Electricity Bill",
-            'category': "Utilities",
-            'date': "2023-09-15",
-            'type': "expense",
-            'timestamp': "2023-09-15T12:00:00.000Z"
-        },
-        {
-            'id': "6",
-            'amount': 200,
-            'description': "Freelance Work",
-            'category': "Income",
-            'date': "2023-09-20",
-            'type': "sales-in",
-            'timestamp': "2023-09-20T12:00:00.000Z"
-        },
-        {
-            'id': "7",
-            'amount': 75,
-            'description': "Restaurant Dinner",
-            'category': "Food",
-            'date': "2023-09-25",
-            'type': "expense",
-            'timestamp': "2023-09-25T12:00:00.000Z"
-        },
-        {
-            'id': "8",
-            'amount': 350,
-            'description': "Online Purchase",
-            'category': "Shopping",
-            'date': "2023-09-28",
-            'type': "sales-out",
-            'timestamp': "2023-09-28T12:00:00.000Z"
-        }
-    ]
-    
-    for t in sample_transactions:
-        db.session.add(Transaction(**t))
-    
-    db.session.commit()
-    
-    return jsonify({'message': 'Database reset with default data'})
+    return jsonify({"success": True, "message": "Database reset successfully"})
 
-# Create a simple index route
-@app.route('/')
-def index():
-    return jsonify({
-        'message': 'Finance Tracker API is running',
-        'endpoints': {
-            'GET /api/transactions': 'Get all transactions',
-            'POST /api/transactions': 'Add a new transaction',
-            'PUT /api/transactions/:id': 'Update a transaction',
-            'DELETE /api/transactions/:id': 'Delete a transaction',
-            'GET /api/categories': 'Get all categories grouped by type',
-            'POST /api/categories': 'Add a new category',
-            'PUT /api/categories/:type/:old_name': 'Update a category',
-            'DELETE /api/categories/:type/:name': 'Delete a category',
-            'POST /api/reset': 'Reset the database with default data'
-        }
-    })
-
-# Run the server
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        
-        # Check if we need to initialize default data
-        if Category.query.count() == 0:
-            # Trigger the reset endpoint to add default data
-            with app.test_client() as client:
-                client.post('/api/reset')
-                
-    app.run(debug=True, port=5000)
+    app.run(debug=True)

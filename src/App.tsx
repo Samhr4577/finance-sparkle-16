@@ -16,13 +16,32 @@ import AddTransactionPage from "./pages/AddTransaction";
 import { useEffect } from "react";
 import { initAuth } from "./lib/auth";
 import { preloadSounds } from "./lib/audio";
+import { useFinanceStore } from "./store/financeStore";
 
 const queryClient = new QueryClient();
 
-const App = () => {
-  // Initialize auth from localStorage if available
+const AppContent = () => {
+  const { fetchTransactions, fetchCategories } = useFinanceStore();
+  
+  // Initialize auth from localStorage and load data from backend
   useEffect(() => {
+    // Initialize auth
     initAuth();
+    
+    // Load data from backend
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          fetchTransactions(),
+          fetchCategories()
+        ]);
+        console.log("Data loaded from backend");
+      } catch (error) {
+        console.error("Failed to load data from backend:", error);
+      }
+    };
+    
+    loadData();
     
     // Preload sound effects
     try {
@@ -30,26 +49,32 @@ const App = () => {
     } catch (error) {
       console.error("Failed to preload sounds:", error);
     }
-  }, []);
+  }, [fetchTransactions, fetchCategories]);
 
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Index />} />
+        <Route path="/expenses" element={<ExpensesPage />} />
+        <Route path="/sales" element={<SalesPage />} />
+        <Route path="/deposits" element={<DepositsPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/add-transaction" element={<AddTransactionPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Index />} />
-            <Route path="/expenses" element={<ExpensesPage />} />
-            <Route path="/sales" element={<SalesPage />} />
-            <Route path="/deposits" element={<DepositsPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/add-transaction" element={<AddTransactionPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <AppContent />
       </TooltipProvider>
     </QueryClientProvider>
   );

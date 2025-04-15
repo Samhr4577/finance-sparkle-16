@@ -20,7 +20,7 @@ export default function AddTransactionPage() {
   }, []);
   
   const handleAddTransaction = (values: TransactionFormValues) => {
-    // Create a complete transaction object (all required fields are present)
+    // Create a complete transaction object with all required fields
     const transactionToAdd = {
       amount: values.amount,
       description: values.description,
@@ -28,8 +28,7 @@ export default function AddTransactionPage() {
       date: values.date,
       type: values.type,
       notes: values.notes || "",
-      // Ensure timestamp is included if present in the values
-      timestamp: values.timestamp || new Date().toISOString()
+      // The timestamp will be added by the addTransaction function in the store
     };
     
     addTransaction(transactionToAdd);

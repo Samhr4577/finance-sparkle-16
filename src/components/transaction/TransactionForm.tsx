@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -10,15 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { RippleButton } from "@/components/ui/ripple-button";
 import { useFinanceStore } from "@/store/financeStore";
 import { TransactionType } from "@/store/types";
-import { supabase } from "@/integrations/supabase/client";
-import { dateToString } from "@/lib/utils";
 
 import { TransactionTypeSelector } from "./TransactionTypeSelector";
 import { CategorySelector } from "./CategorySelector";
 import { AmountDateFields } from "./AmountDateFields";
 import { transactionSchema, TransactionFormValues } from "./transactionFormSchema";
-
-export type { TransactionFormValues } from "./transactionFormSchema";
 
 interface TransactionFormProps {
   onSubmit: (values: TransactionFormValues) => void;
@@ -38,6 +33,7 @@ export function TransactionForm({
     defaultValues?.type || "expense"
   );
   
+  // Ensure form has proper default values and handle submit
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
@@ -47,10 +43,10 @@ export function TransactionForm({
       date: defaultValues?.date ? new Date(defaultValues.date) : new Date(),
       notes: defaultValues?.notes || "",
       type: defaultValues?.type || "expense",
-      timestamp: defaultValues?.timestamp || new Date().toISOString(),
     },
   });
 
+  // When type changes, reset the category field if it doesn't exist in the new type's categories
   useEffect(() => {
     const currentCategory = form.getValues("category");
     const availableCategories = categories[selectedType] || [];
@@ -64,6 +60,7 @@ export function TransactionForm({
     setSelectedType(type);
     form.setValue("type", type);
     
+    // Only reset category when changing types if the category doesn't exist in the new type
     const currentCategory = form.getValues("category");
     const newTypeCategories = categories[type] || [];
     
@@ -71,59 +68,17 @@ export function TransactionForm({
       form.setValue("category", "");
     }
   };
-
-  // Ensure we have a valid array for categories
+  
+  // Ensure availableCategories is always an array, even if categories[selectedType] is undefined
   const availableCategories = categories[selectedType] || [];
 
-  const handleSubmit = async (values: TransactionFormValues) => {
+  const handleSubmit = (values: TransactionFormValues) => {
+    // Add timestamp
     const valuesWithTimestamp = {
       ...values,
-      timestamp: values.timestamp || new Date().toISOString()
+      timestamp: new Date().toISOString()
     };
-    
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      if (session?.session?.user) {
-        const transactionData = {
-          amount: values.amount,
-          description: values.description,
-          category: values.category,
-          transaction_date: values.date.toISOString(),
-          transaction_type: mapTransactionType(values.type),
-          user_id: session.session.user.id
-        };
-        
-        const { error } = await supabase
-          .from('transactions')
-          .insert(transactionData);
-        
-        if (error) {
-          console.error('Error saving to Supabase:', error);
-          toast.error('Failed to save to database. Saving locally only.');
-        } else {
-          toast.success('Transaction saved to database!');
-        }
-      }
-    } catch (error) {
-      console.error('Error in Supabase operation:', error);
-    }
-    
     onSubmit(valuesWithTimestamp);
-  };
-
-  const mapTransactionType = (type: TransactionType): string => {
-    switch (type) {
-      case 'expense':
-        return 'expense';
-      case 'sales-in':
-        return 'income';
-      case 'deposit':
-        return 'deposit';
-      case 'sales-out':
-        return 'expense';
-      default:
-        return 'expense';
-    }
   };
 
   return (

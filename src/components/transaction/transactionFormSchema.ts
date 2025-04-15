@@ -8,7 +8,6 @@ export const transactionSchema = z.object({
   date: z.date(),
   notes: z.string().optional(),
   type: z.enum(["expense", "sales-in", "sales-out", "deposit"] as const),
-  timestamp: z.string().optional(),
 });
 
 export type TransactionFormValues = z.infer<typeof transactionSchema>;

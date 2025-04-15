@@ -30,16 +30,13 @@ interface CategorySelectorProps {
 export function CategorySelector({
   control,
   name,
-  availableCategories = [], // Provide default empty array
+  availableCategories,
   selectedType,
   addCategory,
 }: CategorySelectorProps) {
   const [open, setOpen] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategory, setNewCategory] = useState("");
-  
-  // Ensure categories is always an array
-  const categories = Array.isArray(availableCategories) ? availableCategories : [];
 
   const handleAddCategory = () => {
     if (newCategory.trim()) {
@@ -70,7 +67,7 @@ export function CategorySelector({
                         !field.value && "text-muted-foreground"
                       )}
                     >
-                      {field.value && categories.includes(field.value)
+                      {field.value && availableCategories.includes(field.value)
                         ? field.value
                         : "Select category"}
                       <CheckIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -96,7 +93,7 @@ export function CategorySelector({
                       </div>
                     </CommandEmpty>
                     <CommandGroup>
-                      {categories.map((category) => (
+                      {availableCategories.map((category) => (
                         <CommandItem
                           value={category}
                           key={category}

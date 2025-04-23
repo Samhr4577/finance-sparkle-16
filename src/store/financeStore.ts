@@ -67,6 +67,7 @@ export const useFinanceStore = create<FinanceState>()(
           set({ isLoading: true });
           try {
             // Use Supabase instead of local API
+            console.log('Fetching transactions from:', `${SUPABASE_URL}/rest/v1/transactions`);
             const response = await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
               headers: {
                 'apikey': SUPABASE_API_KEY,
@@ -81,10 +82,11 @@ export const useFinanceStore = create<FinanceState>()(
             }
             
             const data = await response.json();
-            set({ transactions: data, isLoading: false });
+            set({ transactions: data || [], isLoading: false });
           } catch (error) {
             console.error('Failed to fetch transactions:', error);
-            set({ isLoading: false });
+            // If we can't fetch from Supabase, initialize with an empty array
+            set({ transactions: [], isLoading: false });
           }
         },
         
@@ -92,6 +94,7 @@ export const useFinanceStore = create<FinanceState>()(
           set({ isLoading: true });
           try {
             // Use Supabase instead of local API
+            console.log('Fetching categories from:', `${SUPABASE_URL}/rest/v1/categories`);
             const response = await fetch(`${SUPABASE_URL}/rest/v1/categories`, {
               headers: {
                 'apikey': SUPABASE_API_KEY,
@@ -105,12 +108,28 @@ export const useFinanceStore = create<FinanceState>()(
             }
             
             const data = await response.json();
-            set({ categories: data, isLoading: false });
+            
+            if (data && Array.isArray(data) && data.length > 0) {
+              // Convert raw data from Supabase to the format we need
+              const categoriesByType: Record<string, string[]> = {};
+              
+              data.forEach((category: { type: string, name: string }) => {
+                if (!categoriesByType[category.type]) {
+                  categoriesByType[category.type] = [];
+                }
+                categoriesByType[category.type].push(category.name);
+              });
+              
+              set({ categories: categoriesByType, isLoading: false });
+            } else {
+              // Fall back to default categories if no data is returned
+              console.log('No categories found in Supabase, using defaults');
+              set({ categories: defaultCategories, isLoading: false });
+            }
           } catch (error) {
             console.error('Failed to fetch categories:', error);
-            set({ isLoading: false });
             // Fall back to default categories
-            set({ categories: defaultCategories });
+            set({ categories: defaultCategories, isLoading: false });
           }
         }
       };

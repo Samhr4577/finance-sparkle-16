@@ -38,8 +38,10 @@ export function CategorySelector({
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategory, setNewCategory] = useState("");
 
-  // Ensure availableCategories is always an array
-  const categories = Array.isArray(availableCategories) ? availableCategories : [];
+  // Ensure availableCategories is always a non-empty array
+  const categories = Array.isArray(availableCategories) && availableCategories.length > 0 
+    ? availableCategories 
+    : ['Other']; // Fallback to at least one category
 
   const handleAddCategory = async () => {
     if (newCategory.trim()) {
@@ -105,7 +107,7 @@ export function CategorySelector({
                         </Button>
                       </div>
                     </CommandEmpty>
-                    <CommandGroup>
+                    <CommandGroup heading={`${selectedType} categories`}>
                       {categories.map((category) => (
                         <CommandItem
                           value={category}

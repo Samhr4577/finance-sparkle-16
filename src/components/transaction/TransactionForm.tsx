@@ -70,7 +70,7 @@ export function TransactionForm({
   };
   
   // Ensure availableCategories is always an array, even if categories[selectedType] is undefined
-  const availableCategories = Array.isArray(categories[selectedType]) ? categories[selectedType] : [];
+  const availableCategories = categories && categories[selectedType] ? categories[selectedType] : [];
 
   const handleSubmit = (values: TransactionFormValues) => {
     onSubmit(values);

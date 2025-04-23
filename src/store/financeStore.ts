@@ -6,6 +6,10 @@ import { defaultCategories } from './categoryData';
 import { createTransactionOperations } from './transactionOperations';
 import { createTransactionQueries } from './transactionQueries';
 
+// Supabase URL and API key
+const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT_URL.supabase.co'; // Replace with your actual Supabase URL
+const SUPABASE_API_KEY = 'YOUR_SUPABASE_API_KEY'; // Replace with your actual Supabase API key
+
 interface FinanceState {
   transactions: Transaction[];
   categories: Record<string, string[]>;
@@ -62,7 +66,20 @@ export const useFinanceStore = create<FinanceState>()(
         fetchTransactions: async () => {
           set({ isLoading: true });
           try {
-            const response = await fetch('http://localhost:5000/api/transactions');
+            // Use Supabase instead of local API
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
+              headers: {
+                'apikey': SUPABASE_API_KEY,
+                'Authorization': `Bearer ${SUPABASE_API_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+              }
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Failed to fetch transactions: ${response.statusText}`);
+            }
+            
             const data = await response.json();
             set({ transactions: data, isLoading: false });
           } catch (error) {
@@ -74,7 +91,19 @@ export const useFinanceStore = create<FinanceState>()(
         fetchCategories: async () => {
           set({ isLoading: true });
           try {
-            const response = await fetch('http://localhost:5000/api/categories');
+            // Use Supabase instead of local API
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/categories`, {
+              headers: {
+                'apikey': SUPABASE_API_KEY,
+                'Authorization': `Bearer ${SUPABASE_API_KEY}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Failed to fetch categories: ${response.statusText}`);
+            }
+            
             const data = await response.json();
             set({ categories: data, isLoading: false });
           } catch (error) {

@@ -3,6 +3,10 @@ import { toast } from 'sonner';
 import { Transaction, TransactionInput } from './types';
 import { dateToString } from '@/lib/utils';
 
+// Supabase URL and API key
+const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT_URL.supabase.co'; // Replace with your actual Supabase URL
+const SUPABASE_API_KEY = 'YOUR_SUPABASE_API_KEY'; // Replace with your actual Supabase API key
+
 export const createTransactionOperations = (
   get: () => { transactions: Transaction[]; categories: Record<string, string[]> },
   set: (fn: (state: { transactions: Transaction[]; categories: Record<string, string[]>; isLoading: boolean }) => { 
@@ -26,10 +30,13 @@ export const createTransactionOperations = (
     };
     
     try {
-      const response = await fetch('http://localhost:5000/api/transactions', {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'apikey': SUPABASE_API_KEY,
+          'Authorization': `Bearer ${SUPABASE_API_KEY}`,
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify(transactionToAdd),
       });
@@ -67,10 +74,13 @@ export const createTransactionOperations = (
     }
     
     try {
-      const response = await fetch(`http://localhost:5000/api/transactions/${id}`, {
-        method: 'PUT',
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'apikey': SUPABASE_API_KEY,
+          'Authorization': `Bearer ${SUPABASE_API_KEY}`,
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify(processedUpdates),
       });
@@ -85,7 +95,7 @@ export const createTransactionOperations = (
       set((state) => ({
         ...state,
         transactions: state.transactions.map((transaction) => 
-          transaction.id === id ? updatedTransaction : transaction
+          transaction.id === id ? updatedTransaction[0] : transaction
         ),
         isLoading: false
       }));
@@ -102,8 +112,12 @@ export const createTransactionOperations = (
     set((state) => ({ ...state, isLoading: true }));
     
     try {
-      const response = await fetch(`http://localhost:5000/api/transactions/${id}`, {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
         method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_API_KEY,
+          'Authorization': `Bearer ${SUPABASE_API_KEY}`
+        }
       });
       
       if (!response.ok) {
@@ -129,10 +143,24 @@ export const createTransactionOperations = (
     set((state) => ({ ...state, isLoading: true }));
     
     try {
-      const response = await fetch('http://localhost:5000/api/categories', {
+      // First, get the current categories for this type
+      const currentCategories = get().categories[type] || [];
+      
+      // Check if category already exists
+      if (currentCategories.includes(categoryName)) {
+        toast.error("Category already exists");
+        set((state) => ({ ...state, isLoading: false }));
+        return;
+      }
+      
+      // Update the categories in Supabase
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/categories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'apikey': SUPABASE_API_KEY,
+          'Authorization': `Bearer ${SUPABASE_API_KEY}`,
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify({ type, name: categoryName }),
       });
@@ -142,13 +170,13 @@ export const createTransactionOperations = (
         throw new Error(errorData.error || 'Failed to add category');
       }
       
-      // Fetch updated categories after adding a new one
-      const categoriesResponse = await fetch('http://localhost:5000/api/categories');
-      const categories = await categoriesResponse.json();
-      
+      // Update local state
       set((state) => ({
         ...state,
-        categories,
+        categories: {
+          ...state.categories,
+          [type]: [...currentCategories, categoryName]
+        },
         isLoading: false
       }));
       
@@ -164,10 +192,13 @@ export const createTransactionOperations = (
     set((state) => ({ ...state, isLoading: true }));
     
     try {
-      const response = await fetch(`http://localhost:5000/api/categories/${type}/${oldName}`, {
-        method: 'PUT',
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/categories?type=eq.${type}&name=eq.${oldName}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'apikey': SUPABASE_API_KEY,
+          'Authorization': `Bearer ${SUPABASE_API_KEY}`,
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify({ name: newName }),
       });
@@ -177,22 +208,31 @@ export const createTransactionOperations = (
         throw new Error(errorData.error || 'Failed to update category');
       }
       
-      // Fetch updated categories and transactions after updating a category
-      const [categoriesResponse, transactionsResponse] = await Promise.all([
-        fetch('http://localhost:5000/api/categories'),
-        fetch('http://localhost:5000/api/transactions')
-      ]);
-      
-      const [categories, transactions] = await Promise.all([
-        categoriesResponse.json(),
-        transactionsResponse.json()
-      ]);
+      // Update local state
+      const currentCategories = get().categories[type] || [];
+      const updatedCategories = currentCategories.map(cat => cat === oldName ? newName : cat);
       
       set((state) => ({
         ...state,
-        categories,
-        transactions,
+        categories: {
+          ...state.categories,
+          [type]: updatedCategories
+        },
         isLoading: false
+      }));
+      
+      // Also update any transactions using this category
+      const transactions = get().transactions;
+      const updatedTransactions = transactions.map(t => {
+        if (t.type === type && t.category === oldName) {
+          return { ...t, category: newName };
+        }
+        return t;
+      });
+      
+      set((state) => ({
+        ...state,
+        transactions: updatedTransactions,
       }));
       
       toast.success("Category updated successfully");
@@ -207,8 +247,12 @@ export const createTransactionOperations = (
     set((state) => ({ ...state, isLoading: true }));
     
     try {
-      const response = await fetch(`http://localhost:5000/api/categories/${type}/${categoryName}`, {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/categories?type=eq.${type}&name=eq.${categoryName}`, {
         method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_API_KEY,
+          'Authorization': `Bearer ${SUPABASE_API_KEY}`
+        }
       });
       
       if (!response.ok) {
@@ -216,13 +260,16 @@ export const createTransactionOperations = (
         throw new Error(errorData.error || 'Failed to delete category');
       }
       
-      // Fetch updated categories after deleting a category
-      const categoriesResponse = await fetch('http://localhost:5000/api/categories');
-      const categories = await categoriesResponse.json();
+      // Update local state
+      const currentCategories = get().categories[type] || [];
+      const updatedCategories = currentCategories.filter(cat => cat !== categoryName);
       
       set((state) => ({
         ...state,
-        categories,
+        categories: {
+          ...state.categories,
+          [type]: updatedCategories
+        },
         isLoading: false
       }));
       

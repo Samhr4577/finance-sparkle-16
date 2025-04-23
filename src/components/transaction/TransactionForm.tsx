@@ -73,12 +73,7 @@ export function TransactionForm({
   const availableCategories = Array.isArray(categories[selectedType]) ? categories[selectedType] : [];
 
   const handleSubmit = (values: TransactionFormValues) => {
-    // Add timestamp
-    const valuesWithTimestamp = {
-      ...values,
-      timestamp: new Date().toISOString()
-    };
-    onSubmit(valuesWithTimestamp);
+    onSubmit(values);
   };
 
   return (

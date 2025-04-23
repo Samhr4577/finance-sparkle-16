@@ -38,16 +38,20 @@ export function CategorySelector({
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategory, setNewCategory] = useState("");
 
-  const handleAddCategory = () => {
-    if (newCategory.trim()) {
-      addCategory(selectedType, newCategory.trim());
-      setNewCategory("");
-      setIsAddingCategory(false);
-    }
-  };
-
   // Ensure availableCategories is always an array
   const categories = Array.isArray(availableCategories) ? availableCategories : [];
+
+  const handleAddCategory = async () => {
+    if (newCategory.trim()) {
+      try {
+        await addCategory(selectedType, newCategory.trim());
+        setNewCategory("");
+        setIsAddingCategory(false);
+      } catch (error) {
+        console.error("Failed to add category:", error);
+      }
+    }
+  };
 
   return (
     <>
@@ -69,6 +73,11 @@ export function CategorySelector({
                         "w-full justify-between",
                         !field.value && "text-muted-foreground"
                       )}
+                      type="button" // Add type="button" to prevent form submission
+                      onClick={(e) => {
+                        e.preventDefault(); // Prevent any default form behavior
+                        setOpen(true);
+                      }}
                     >
                       {field.value && categories.includes(field.value)
                         ? field.value
@@ -90,6 +99,7 @@ export function CategorySelector({
                             setOpen(false);
                             setIsAddingCategory(true);
                           }}
+                          type="button"
                         >
                           Add new category
                         </Button>
@@ -123,7 +133,10 @@ export function CategorySelector({
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => setIsAddingCategory(true)} 
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsAddingCategory(true);
+                }} 
                 className="shrink-0"
               >
                 <PlusIcon className="h-4 w-4" />
@@ -154,10 +167,10 @@ export function CategorySelector({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddingCategory(false)}>
+            <Button variant="outline" onClick={() => setIsAddingCategory(false)} type="button">
               Cancel
             </Button>
-            <Button onClick={handleAddCategory}>
+            <Button onClick={handleAddCategory} type="button">
               Add Category
             </Button>
           </DialogFooter>

@@ -49,7 +49,7 @@ export function TransactionForm({
   // When type changes, reset the category field if it doesn't exist in the new type's categories
   useEffect(() => {
     const currentCategory = form.getValues("category");
-    const availableCategories = categories[selectedType] || [];
+    const availableCategories = categories && categories[selectedType] ? categories[selectedType] : [];
     
     if (currentCategory && !availableCategories.includes(currentCategory)) {
       form.setValue("category", "");
@@ -62,7 +62,7 @@ export function TransactionForm({
     
     // Only reset category when changing types if the category doesn't exist in the new type
     const currentCategory = form.getValues("category");
-    const newTypeCategories = categories[type] || [];
+    const newTypeCategories = categories && categories[type] ? categories[type] : [];
     
     if (!newTypeCategories.includes(currentCategory)) {
       form.setValue("category", "");

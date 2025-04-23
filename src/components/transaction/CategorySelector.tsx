@@ -110,8 +110,8 @@ export function CategorySelector({
                     <CommandGroup heading={`${selectedType} categories`}>
                       {categories.map((category) => (
                         <CommandItem
-                          value={category}
                           key={category}
+                          value={category}
                           onSelect={() => {
                             field.onChange(category);
                             setOpen(false);
